@@ -1,0 +1,71 @@
+services:
+  # nessie-catalog:
+  #   image: projectnessie/nessie:0.76.6
+  #   container_name: nessie-catalog
+  #   ports:
+  #     - "19120:19120"
+
+# The Global Metadata Lake (Federator)
+  gravitino:
+    image: apache/gravitino:0.6.1-incubating #datastrato/gravitino:0.5.1
+    container_name: gravitino
+    volumes:
+      - ./gravitino_config/conf/gravitino.conf:/root/gravitino/conf/gravitino.conf
+      - ./gravitino_config/libs/postgresql-42.7.3.jar:/root/gravitino/libs/postgresql-42.7.3.jar
+      # - ./gravitino_config/libs/postgresql-42.7.3.jar:/root/gravitino/iceberg-rest-server/libs/postgresql-42.7.3.jar
+      # - ./gravitino_config/libs/hadoop-aws-3.3.4.jar:/root/gravitino/catalogs/lakehouse-iceberg/libs/hadoop-aws-3.3.4.jar
+      # - ./gravitino_config/libs/wildfly-openssl-2.2.5.Final.jar:/root/gravitino/catalogs/lakehouse-iceberg/libs/wildfly-openssl-2.2.5.Final.jar
+      # - ./gravitino_config/libs/aws-java-sdk-bundle-1.12.262.jar:/root/gravitino/catalogs/lakehouse-iceberg/libs/aws-java-sdk-bundle-1.12.262.jar
+      # - ./gravitino_config/libs/iceberg-aws-bundle-1.5.2.jar:/root/gravitino/catalogs/lakehouse-iceberg/libs/iceberg-aws-bundle-1.5.2.jar
+      - ./gravitino_config/libs:/root/gravitino/libs/external
+      - ./gravitino_config/libs:/root/gravitino/iceberg-rest-server/libs/external
+      - ./gravitino_config/libs:/root/gravitino/catalogs/lakehouse-iceberg/libs/external
+
+      - ./gravitino_config/conf/lakehouse-iceberg/core-site.xml:/root/gravitino/catalogs/lakehouse-iceberg/conf/core-site.xml
+      - ./gravitino_config/conf/lakehouse-iceberg/lakehouse-iceberg.conf:/root/gravitino/catalogs/lakehouse-iceberg/conf/lakehouse-iceberg.conf
+    ports:
+      - "8090:8090" # GUI
+      - "9005:9005" # Iceberg REST
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - AWS_EC2_METADATA_DISABLED=true
+      - GRAVITINO_ENTITY_STORE=relational
+      - GRAVITINO_ENTITY_STORE_RELATIONAL=JDBCBackend
+      - GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_URL=jdbc:postgresql://postgres:5432/lakehouse
+      - GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_DRIVER=org.postgresql.Driver
+      - GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_USER=admin
+      - GRAVITINO_ENTITY_STORE_RELATIONAL_JDBC_PASSWORD=password
+      - GRAVITINO_ENTITY_STORE_RELATIONAL_BACKEND_TYPE=postgres
+      - GRAVITINO_ENTITY_STORE_RELATIONAL_BACKEND=postgresql
+      # - GRAVITINO_JDBC_BACKEND=postgres
+      # - GRAVITINO_JDBC_DRIVER=org.postgresql.Driver
+      # - GRAVITINO_JDBC_USER=admin
+      # - GRAVITINO_JDBC_PASSWORD=password
+      # - GRAVITINO_JDBC_URL=jdbc:postgresql://postgres:5432/lakehouse
+
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    environment:
+      MINIO_REGION_NAME: us-east-1
+      MINIO_REGION: us-east-1
+      MINIO_DOMAIN: minio
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    entrypoint: >
+      /bin/sh -c "
+      minio server /data --console-address ':9001' &
+      sleep 5;
+      mc alias set batman http://localhost:9000 admin password;
+      mc mb batman/local-lakehouse;
+      tail -f /dev/null"
