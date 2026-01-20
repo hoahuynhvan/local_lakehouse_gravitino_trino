@@ -20,9 +20,14 @@ start_services() {
     
     # Change to script directory to ensure docker-compose files are found
     cd "$SCRIPT_DIR"
-    
+
     # Step 1: Start the data lake infrastructure (MinIO + Nessie)
-    echo "Starting data lake services (MinIO + Nessie)..."
+    echo "Starting database services (Postgresql DB)..."
+    docker compose -f docker-compose-database.yaml up -d
+    sleep 5  # Allow services to initialize
+
+    # Step 1: Start the data lake infrastructure (MinIO + Gravitino)
+    echo "Starting data lake services (MinIO + Gravitino)..."
     docker compose -f docker-compose-lake.yaml up -d
     sleep 5  # Allow services to initialize
     
@@ -42,7 +47,7 @@ start_services() {
     echo "  - MinIO Console: http://localhost:9001 (admin/password)"
     echo "  - Trino Web UI: http://localhost:8080"
     echo "  - Airflow Web UI: http://localhost:8081 (airflow/airflow)"
-    echo "  - Nessie API: http://localhost:19120"
+    echo "  - Gravitino Web UI: http://localhost:8090/"
     echo ""
 
     # Initialize Trino with required schemas
@@ -93,7 +98,10 @@ stop_services() {
     
     echo "Stopping data lake services..."
     docker compose -f docker-compose-lake.yaml down -v
-    
+
+    echo "Stopping data lake services..."
+    docker compose -f docker-compose-database.yaml down -v
+
     echo "All services stopped and volumes cleaned up."
     echo ""
 }
@@ -123,5 +131,6 @@ case "${1:-help}" in
         echo "  - MinIO Console: http://localhost:9001"
         echo "  - Trino Web UI: http://localhost:8080" 
         echo "  - Airflow Web UI: http://localhost:8081"
+        echo "  - Gravitino Web UI: http://localhost:8090"
         ;;
 esac

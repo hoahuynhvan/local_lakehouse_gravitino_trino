@@ -5,12 +5,12 @@ services:
   #   ports:
   #     - "19120:19120"
 
-# The Global Metadata Lake (Federator)
+  # The Global Metadata Lake (Federator)
   gravitino:
-    image: apache/gravitino:0.6.1-incubating #datastrato/gravitino:0.5.1
+    image: apache/gravitino:1.1.0 #apache/gravitino:0.6.1-incubating #datastrato/gravitino:0.5.1
     container_name: gravitino
     volumes:
-      - ./gravitino_config/conf/gravitino.conf:/root/gravitino/conf/gravitino.conf
+      # - ./gravitino_config/conf/gravitino.conf:/root/gravitino/conf/gravitino.conf
       - ./gravitino_config/libs/postgresql-42.7.3.jar:/root/gravitino/libs/postgresql-42.7.3.jar
       # - ./gravitino_config/libs/postgresql-42.7.3.jar:/root/gravitino/iceberg-rest-server/libs/postgresql-42.7.3.jar
       # - ./gravitino_config/libs/hadoop-aws-3.3.4.jar:/root/gravitino/catalogs/lakehouse-iceberg/libs/hadoop-aws-3.3.4.jar
@@ -21,6 +21,7 @@ services:
       - ./gravitino_config/libs:/root/gravitino/iceberg-rest-server/libs/external
       - ./gravitino_config/libs:/root/gravitino/catalogs/lakehouse-iceberg/libs/external
 
+      # Iceberg specific configs
       - ./gravitino_config/conf/lakehouse-iceberg/core-site.xml:/root/gravitino/catalogs/lakehouse-iceberg/conf/core-site.xml
       - ./gravitino_config/conf/lakehouse-iceberg/lakehouse-iceberg.conf:/root/gravitino/catalogs/lakehouse-iceberg/conf/lakehouse-iceberg.conf
     ports:
@@ -58,14 +59,9 @@ services:
       - "9000:9000"
       - "9001:9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 30s
       timeout: 20s
       retries: 3
     entrypoint: >
-      /bin/sh -c "
-      minio server /data --console-address ':9001' &
-      sleep 5;
-      mc alias set batman http://localhost:9000 admin password;
-      mc mb batman/local-lakehouse;
-      tail -f /dev/null"
+      /bin/sh -c " minio server /data --console-address ':9001' & sleep 5; mc alias set batman http://localhost:9000 admin password; mc mb batman/local-lakehouse; tail -f /dev/null"
